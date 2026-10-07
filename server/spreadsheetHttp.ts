@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response } from "express";
 import multer from "multer";
+import { requireAdminHttp } from "./_core/httpAuth";
 import {
   processAndImportSpreadsheet,
   validateSpreadsheetBuffer,
@@ -64,7 +65,7 @@ export function registerSpreadsheetHttpRoutes(app: Express) {
     }
   };
 
-  app.post("/api/spreadsheets/validate", hybridUpload, async (req, res) => {
+  app.post("/api/spreadsheets/validate", requireAdminHttp, hybridUpload, async (req, res) => {
     try {
       const buffer = getBodyBuffer(req);
       if (!buffer.length) {
@@ -78,7 +79,7 @@ export function registerSpreadsheetHttpRoutes(app: Express) {
     }
   });
 
-  app.post("/api/spreadsheets/import", hybridUpload, async (req, res) => {
+  app.post("/api/spreadsheets/import", requireAdminHttp, hybridUpload, async (req, res) => {
     try {
       const buffer = getBodyBuffer(req);
       if (!buffer.length) {

@@ -1,8 +1,10 @@
 import { COOKIE_NAME } from "@shared/const";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { adminRouter, selfServiceRouter } from "./adminRouter";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, publicProcedure, router, scopedProcedure, writerProcedure } from "./_core/trpc";
 import {
   createProjectRisk,
   createWeeklyUpdate,
@@ -13,6 +15,7 @@ import {
   getProjectById,
   getProjectRisks,
   getProjectsList,
+  getRiskProjectId,
   getProjectWeeklyUpdates,
   updateRiskStatus,
 } from "./db";
@@ -43,13 +46,19 @@ import {
   takeSpreadsheetImportSession,
 } from "./spreadsheetImportStaging";
 
+function forbidProject() {
+  return new TRPCError({ code: "FORBIDDEN", message: "Você não tem acesso a este projeto." });
+}
+
 function projectActualHours(project: { actualHours?: unknown; productiveActualHours?: unknown; hoursMetricsSource?: string | null; projectType?: string | null; projectTypeDescription?: string | null }) {
   return Number(project.actualHours ?? 0);
 }
 
 export const appRouter = router({
   system: systemRouter,
+  admin: adminRouter,
   auth: router({
+    ...selfServiceRouter,
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
@@ -61,17 +70,17 @@ export const appRouter = router({
   }),
 
   projects: router({
-    list: publicProcedure
+    list: scopedProcedure
       .input(z.object({ search: z.string().optional() }).optional())
-      .query(async ({ input }) => {
-        return await getProjectsList(input?.search);
+      .query(async ({ input, ctx }) => {
+        return ctx.scope.filterProjects(await getProjectsList(input?.search));
       }),
 
-    getImportBatches: publicProcedure.query(async () => {
+    getImportBatches: adminProcedure.query(async () => {
       return await getImportBatches();
     }),
 
-    validateSpreadsheet: publicProcedure
+    validateSpreadsheet: adminProcedure
       .input(
         z.object({
           fileName: z.string(),
@@ -83,7 +92,7 @@ export const appRouter = router({
         return validateSpreadsheetBuffer(input.fileName, buffer);
       }),
 
-    importSpreadsheet: publicProcedure
+    importSpreadsheet: adminProcedure
       .input(
         z.object({
           fileName: z.string(),
@@ -96,11 +105,12 @@ export const appRouter = router({
         return await processAndImportSpreadsheet(input.fileName, buffer, input.notes);
       }),
 
-    getVisualControl: publicProcedure
+    getVisualControl: scopedProcedure
       .input(z.object({ projectId: z.number().optional(), weekOffset: z.number().int().min(-100).max(100).optional(), month: z.string().regex(/^\d{4}-\d{2}$/).optional() }).optional())
-      .query(async ({ input }) => {
-        const allProjects = await getProjectsList();
+      .query(async ({ input, ctx }) => {
+        const allProjects = ctx.scope.filterProjects(await getProjectsList());
         const selectedId = input?.projectId;
+        if (selectedId && !ctx.scope.canAccessProject(selectedId)) throw forbidProject();
         const weekOffset = input?.weekOffset || 0;
         const month = input?.month;
         const activities = selectedId ? await getProjectActivities(selectedId) : [];
@@ -292,8 +302,8 @@ export const appRouter = router({
         };
       }),
 
-    getHoursComparison: publicProcedure.query(async () => {
-      const projects = await getProjectsList();
+    getHoursComparison: scopedProcedure.query(async ({ ctx }) => {
+      const projects = ctx.scope.filterProjects(await getProjectsList());
       return [...projects]
         .sort((a, b) => projectActualHours(b) - projectActualHours(a))
         .slice(0, 10)
@@ -308,14 +318,14 @@ export const appRouter = router({
         }));
     }),
 
-    getHoursSummary: publicProcedure
+    getHoursSummary: scopedProcedure
       .input(z.object({
         projectIds: z.array(z.number().int().positive()).min(1).max(1000),
         periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         const [projects, allActivities] = await Promise.all([getProjectsList(), getAllProjectActivities()]);
-        const projectIdSet = new Set(input.projectIds);
+        const projectIdSet = new Set(ctx.scope.filterProjectIds(input.projectIds));
         const selectedProjects = projects.filter((project) => projectIdSet.has(project.id));
         const activitiesByProject = new Map<number, typeof allActivities>();
         allActivities.forEach((activity) => {
@@ -372,13 +382,14 @@ export const appRouter = router({
         };
       }),
 
-    getSCurve: publicProcedure
+    getSCurve: scopedProcedure
       .input(z.object({
         projectId: z.number().int().positive(),
         moduleName: z.string().optional(),
         compareSnapshotId: z.number().int().positive().optional(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        if (!ctx.scope.canAccessProject(input.projectId)) throw forbidProject();
         const [projects, allActivities, snapshots] = await Promise.all([
           getProjectsList(),
           getAllProjectActivities(),
@@ -441,7 +452,7 @@ export const appRouter = router({
         };
       }),
 
-    saveSCurveSnapshot: publicProcedure
+    saveSCurveSnapshot: writerProcedure
       .input(z.object({
         projectId: z.number().int().positive(),
         snapshotMonth: z.string().regex(/^\d{4}-\d{2}$/),
@@ -449,7 +460,8 @@ export const appRouter = router({
         snapshotName: z.string().min(3).max(160).optional(),
         isBaseline: z.boolean().default(false),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.scope.canAccessProject(input.projectId)) throw forbidProject();
         const [project, activities, existingSnapshots] = await Promise.all([
           getProjectById(input.projectId),
           getProjectActivities(input.projectId),
@@ -481,11 +493,11 @@ export const appRouter = router({
         };
       }),
 
-    getOracleConfig: publicProcedure.query(async () => {
+    getOracleConfig: adminProcedure.query(async () => {
       return await getOracleConfig();
     }),
 
-    saveOracleConfig: publicProcedure
+    saveOracleConfig: adminProcedure
       .input(
         z.object({
           endpointUrl: z.string().min(5),
@@ -497,7 +509,7 @@ export const appRouter = router({
         return await saveOracleConfig(input);
       }),
 
-    testOracleConnection: publicProcedure
+    testOracleConnection: adminProcedure
       .input(
         z.object({
           endpointUrl: z.string().optional(),
@@ -507,7 +519,7 @@ export const appRouter = router({
         return await testOracleConnection(input?.endpointUrl);
       }),
 
-    publishOraclePreview: publicProcedure
+    publishOraclePreview: adminProcedure
       .input(
         z.object({
           endpointUrl: z.string().optional(),
@@ -522,13 +534,13 @@ export const appRouter = router({
         return await publishAnalyzedPreview(input);
       }),
 
-    getOracleSyncRunStatus: publicProcedure
+    getOracleSyncRunStatus: adminProcedure
       .input(z.object({ runId: z.number().int().positive() }))
       .query(async ({ input }) => {
         return await getOracleSyncRunStatus(input.runId);
       }),
 
-    listOracleSyncRuns: publicProcedure
+    listOracleSyncRuns: adminProcedure
       .input(
         z.object({
           page: z.number().int().min(1).default(1),
@@ -539,7 +551,7 @@ export const appRouter = router({
         return await listOracleSyncRuns(input.page, input.pageSize);
       }),
 
-    rollbackOracleSyncRun: publicProcedure
+    rollbackOracleSyncRun: adminProcedure
       .input(
         z.object({
           runId: z.number().int().positive(),
@@ -549,7 +561,7 @@ export const appRouter = router({
         return await rollbackOracleSyncRun(input.runId);
       }),
 
-    importSpreadsheetRowsChunked: publicProcedure
+    importSpreadsheetRowsChunked: adminProcedure
       .input(
         z.object({
           fileName: z.string(),
@@ -561,7 +573,7 @@ export const appRouter = router({
         return await processParsedSpreadsheetRows(input.fileName, input.rows, input.notes);
       }),
 
-    beginSpreadsheetImport: publicProcedure
+    beginSpreadsheetImport: adminProcedure
       .input(
         z.object({
           fileName: z.string(),
@@ -574,7 +586,7 @@ export const appRouter = router({
         return await createSpreadsheetImportSession(input);
       }),
 
-    uploadSpreadsheetImportChunk: publicProcedure
+    uploadSpreadsheetImportChunk: adminProcedure
       .input(
         z.object({
           sessionId: z.string().uuid(),
@@ -586,34 +598,34 @@ export const appRouter = router({
         return await appendSpreadsheetImportChunk(input);
       }),
 
-    completeSpreadsheetImport: publicProcedure
+    completeSpreadsheetImport: adminProcedure
       .input(z.object({ sessionId: z.string().uuid() }))
       .mutation(async ({ input }) => {
         const staged = await takeSpreadsheetImportSession(input.sessionId);
         return await processParsedSpreadsheetRows(staged.fileName, staged.rows, staged.notes);
       }),
 
-    startProcessingSpreadsheetImport: publicProcedure
+    startProcessingSpreadsheetImport: adminProcedure
       .input(z.object({ sessionId: z.string().uuid() }))
       .mutation(async ({ input }) => {
         return await startProcessingSpreadsheetImportSession(input.sessionId);
       }),
 
-    getSpreadsheetImportStatus: publicProcedure
+    getSpreadsheetImportStatus: adminProcedure
       .input(z.object({ sessionId: z.string().uuid() }))
       .query(async ({ input }) => {
         return await getSpreadsheetImportSessionStatus(input.sessionId);
       }),
 
-    getProgressHistory: publicProcedure
+    getProgressHistory: scopedProcedure
       .input(z.object({ projectIds: z.array(z.number().int().positive()).min(1).max(1000) }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         const [allProjects, allActivities, allUpdates] = await Promise.all([
           getProjectsList(),
           getAllProjectActivities(),
           getProjectWeeklyUpdates(),
         ]);
-        const projectIdSet = new Set(input.projectIds);
+        const projectIdSet = new Set(ctx.scope.filterProjectIds(input.projectIds));
         const projects = allProjects.filter((project) => projectIdSet.has(project.id));
         const activitiesByProject = new Map<number, typeof allActivities>();
         allActivities.forEach((activity) => {
@@ -737,11 +749,11 @@ export const appRouter = router({
         });
       }),
 
-    getUpcomingAlerts: publicProcedure
+    getUpcomingAlerts: scopedProcedure
       .input(z.object({ projectIds: z.array(z.number().int().positive()).min(1).max(1000) }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         const [allProjects, allActivities] = await Promise.all([getProjectsList(), getAllProjectActivities()]);
-        const projectIdSet = new Set(input.projectIds);
+        const projectIdSet = new Set(ctx.scope.filterProjectIds(input.projectIds));
         const projectsById = new Map(allProjects.filter((project) => projectIdSet.has(project.id)).map((project) => [project.id, project]));
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -784,17 +796,18 @@ export const appRouter = router({
           .sort((left, right) => left.businessDaysRemaining - right.businessDaysRemaining || left.plannedEnd.localeCompare(right.plannedEnd));
       }),
 
-    getAllOpenRisks: publicProcedure.query(async () => {
-      return getAllOpenRisks();
+    getAllOpenRisks: scopedProcedure.query(async ({ ctx }) => {
+      return ctx.scope.filterByProject(await getAllOpenRisks());
     }),
 
-    getAllActivities: publicProcedure.query(async () => {
-      return getAllProjectActivities();
+    getAllActivities: scopedProcedure.query(async ({ ctx }) => {
+      return ctx.scope.filterByProject(await getAllProjectActivities());
     }),
 
-    getById: publicProcedure
+    getById: scopedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        if (!ctx.scope.canAccessProject(input.id)) throw forbidProject();
         const project = await getProjectById(input.id);
         if (!project) throw new Error("Projeto não encontrado");
         const activities = await getProjectActivities(input.id);
@@ -813,9 +826,9 @@ export const appRouter = router({
         };
       }),
 
-    getPortfolioMetrics: publicProcedure.query(async () => {
-      const allProjects = await getProjectsList();
-      const openRisks = await getAllOpenRisks();
+    getPortfolioMetrics: scopedProcedure.query(async ({ ctx }) => {
+      const allProjects = ctx.scope.filterProjects(await getProjectsList());
+      const openRisks = ctx.scope.filterByProject(await getAllOpenRisks());
 
       const totalProjects = allProjects.length;
       const countVerde = allProjects.filter(p => p.status === "verde").length;
@@ -859,14 +872,17 @@ export const appRouter = router({
       };
     }),
 
-    getProjectWeeklyUpdates: publicProcedure
+    getProjectWeeklyUpdates: scopedProcedure
       .input(z.object({ projectId: z.number().optional() }).optional())
-      .query(async ({ input }) => {
-        if (input?.projectId) return await getProjectWeeklyUpdates(input.projectId);
-        return await getProjectWeeklyUpdates();
+      .query(async ({ input, ctx }) => {
+        if (input?.projectId) {
+          if (!ctx.scope.canAccessProject(input.projectId)) throw forbidProject();
+          return await getProjectWeeklyUpdates(input.projectId);
+        }
+        return ctx.scope.filterByProject(await getProjectWeeklyUpdates());
       }),
 
-    addWeeklyUpdate: publicProcedure
+    addWeeklyUpdate: writerProcedure
       .input(
         z.object({
           projectId: z.number(),
@@ -891,7 +907,8 @@ export const appRouter = router({
           ).optional().default([]),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.scope.canAccessProject(input.projectId)) throw forbidProject();
         const uploadedAttachments = [];
         for (const file of input.attachments) {
           const buffer = Buffer.from(file.fileBase64, "base64");
@@ -925,7 +942,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    addRisk: publicProcedure
+    addRisk: writerProcedure
       .input(
         z.object({
           projectId: z.number(),
@@ -939,7 +956,8 @@ export const appRouter = router({
           dueDate: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.scope.canAccessProject(input.projectId)) throw forbidProject();
         await createProjectRisk({
           projectId: input.projectId,
           title: input.title,
@@ -955,14 +973,16 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    updateRiskStatus: publicProcedure
+    updateRiskStatus: writerProcedure
       .input(
         z.object({
           riskId: z.number(),
           status: z.enum(["aberto", "em_mitigacao", "resolvido"]),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        const riskProjectId = await getRiskProjectId(input.riskId);
+        if (riskProjectId === null || !ctx.scope.canAccessProject(riskProjectId)) throw forbidProject();
         await updateRiskStatus(input.riskId, input.status);
         return { success: true };
       }),

@@ -1,4 +1,4 @@
-import { desc, eq, like, or } from "drizzle-orm";
+import { and, desc, eq, inArray, like, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertProject,
@@ -12,6 +12,7 @@ import {
   projectRisks,
   projects,
   sCurveSnapshots,
+  userProjectAccess,
   users,
   weeklyUpdates,
   weeklyUpdateAttachments,
@@ -213,4 +214,121 @@ export async function updateRiskStatus(riskId: number, status: "aberto" | "em_mi
       resolvedAt: status === "resolvido" ? new Date() : null,
     })
     .where(eq(projectRisks.id, riskId));
+}
+
+// ---------------------------------------------------------------------------
+// Usuários locais (login próprio) e acesso por projeto
+// ---------------------------------------------------------------------------
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result[0];
+}
+
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createLocalUser(data: {
+  openId: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  role?: "admin" | "user";
+  profileRole?: InsertUser["profileRole"];
+  status?: "pendente" | "ativo" | "bloqueado";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados não disponível.");
+  await db.insert(users).values({
+    openId: data.openId,
+    email: data.email,
+    name: data.name,
+    loginMethod: "senha",
+    passwordHash: data.passwordHash,
+    role: data.role ?? "user",
+    profileRole: data.profileRole ?? "cliente",
+    status: data.status ?? "pendente",
+  });
+  return getUserByEmail(data.email);
+}
+
+export async function touchLastSignedIn(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, userId));
+}
+
+export async function listUsersWithAccess() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    role: users.role,
+    profileRole: users.profileRole,
+    status: users.status,
+    createdAt: users.createdAt,
+    lastSignedIn: users.lastSignedIn,
+  }).from(users).orderBy(desc(users.createdAt));
+  const access = await db.select().from(userProjectAccess);
+  return rows.map((row) => ({
+    ...row,
+    projectIds: access.filter((entry) => entry.userId === row.id).map((entry) => entry.projectId),
+  }));
+}
+
+export async function updateUserAdmin(
+  userId: number,
+  patch: Partial<Pick<InsertUser, "name" | "role" | "profileRole" | "status" | "passwordHash">>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados não disponível.");
+  await db.update(users).set(patch).where(eq(users.id, userId));
+}
+
+export async function countActiveAdmins() {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select({ id: users.id }).from(users).where(and(eq(users.role, "admin"), eq(users.status, "ativo")));
+  return rows.length;
+}
+
+export async function getUserProjectIds(userId: number): Promise<number[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(userProjectAccess).where(eq(userProjectAccess.userId, userId));
+  return rows.map((row) => row.projectId);
+}
+
+export async function setUserProjectIds(userId: number, projectIds: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados não disponível.");
+  const unique = Array.from(new Set(projectIds));
+  await db.transaction(async (tx) => {
+    await tx.delete(userProjectAccess).where(eq(userProjectAccess.userId, userId));
+    if (unique.length > 0) {
+      await tx.insert(userProjectAccess).values(unique.map((projectId) => ({ userId, projectId })));
+    }
+  });
+}
+
+export async function getExistingProjectIds(ids: number[]): Promise<number[]> {
+  const db = await getDb();
+  if (!db || ids.length === 0) return [];
+  const rows = await db.select({ id: projects.id }).from(projects).where(inArray(projects.id, ids));
+  return rows.map((row) => row.id);
+}
+
+export async function getRiskProjectId(riskId: number): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select({ projectId: projectRisks.projectId }).from(projectRisks).where(eq(projectRisks.id, riskId)).limit(1);
+  return rows[0]?.projectId ?? null;
 }

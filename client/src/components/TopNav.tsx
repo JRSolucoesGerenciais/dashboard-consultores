@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { ProfileRole, useProfile } from "@/contexts/ProfileContext";
 import {
   AlertTriangle,
@@ -19,8 +20,10 @@ import {
   FileSpreadsheet,
   Grid3X3,
   Layers,
+  LogOut,
   ShieldCheck,
   UserCheck,
+  UserCog,
   Users,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -28,6 +31,7 @@ import { Link, useLocation } from "wouter";
 export function TopNav() {
   const { currentProfile, setCurrentProfile, profileNames } = useProfile();
   const [location] = useLocation();
+  const { user, isAdmin, logout } = useAuth();
 
   const getProfileIcon = (role: ProfileRole) => {
     switch (role) {
@@ -99,15 +103,36 @@ export function TopNav() {
               <AlertTriangle className="w-4 h-4" />
               Riscos & Decisões
             </Link>
-            <Link href="/atualizar-planilha" className={navClass("/atualizar-planilha", true)}>
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              Atualizar Planilha
-            </Link>
+            {isAdmin && (
+              <Link href="/atualizar-planilha" className={navClass("/atualizar-planilha", true)}>
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                Atualizar Planilha
+              </Link>
+            )}
+            {isAdmin && (
+              <Link href="/admin/usuarios" className={navClass("/admin/usuarios", true)}>
+                <UserCog className="w-4 h-4" />
+                Usuários
+              </Link>
+            )}
           </nav>
         </div>
 
         {/* Alternador de Perfil em Tempo Real */}
         <div className="flex items-center space-x-3">
+          {user && (
+            <div className="hidden md:block text-right">
+              <div className="text-xs font-bold text-[#0B3848]">{user.name}</div>
+              <div className="text-[10px] text-slate-400">{isAdmin ? "Administrador" : user.profileRole === "cliente" ? "Cliente" : "Coordenador de projetos"}</div>
+            </div>
+          )}
+          {user && (
+            <Button variant="outline" size="sm" onClick={() => logout()} className="flex items-center gap-1">
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="text-xs">Sair</span>
+            </Button>
+          )}
+          {isAdmin && (<>
           <div className="hidden sm:block text-right">
             <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Perfil Ativo</div>
             <div className="text-xs font-bold text-[#0B3848] flex items-center gap-1 justify-end">
@@ -145,6 +170,7 @@ export function TopNav() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          </>)}
         </div>
       </div>
     </header>

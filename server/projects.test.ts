@@ -15,6 +15,7 @@ function createMockContext(): TrpcContext {
       loginMethod: "manus",
       role: "admin",
       profileRole: "gerente",
+      status: "ativo",
       createdAt: new Date(),
       updatedAt: new Date(),
       lastSignedIn: new Date(),

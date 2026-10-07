@@ -12,11 +12,22 @@ import RisksManagement from "@/pages/RisksManagement";
 import WeeklyCheckin from "@/pages/WeeklyCheckin";
 import VisualControl from "@/pages/VisualControl";
 import SpreadsheetUploadPage from "@/pages/SpreadsheetUploadPage";
+import AdminUsers from "@/pages/AdminUsers";
+import Login from "@/pages/Login";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Route, Switch } from "wouter";
 
+function Forbidden() {
+  return <div className="p-10 text-center text-slate-500">Você não tem permissão para acessar esta página.</div>;
+}
+
 function Router() {
+  const { user, loading, isAdmin } = useAuth();
+  if (loading) return <div className="p-10 text-center text-slate-500">Carregando...</div>;
+  if (!user) return <Login />;
   return (
     <Switch>
+      <Route path="/login" component={Home} />
       <Route path="/" component={Home} />
       <Route path="/projeto" component={ProjectDetail} />
       <Route path="/projeto/:id" component={ProjectDetail} />
@@ -24,7 +35,8 @@ function Router() {
       <Route path="/controle-visual" component={VisualControl} />
       <Route path="/apontamento-semanal" component={WeeklyCheckin} />
       <Route path="/riscos-problemas" component={RisksManagement} />
-      <Route path="/atualizar-planilha" component={SpreadsheetUploadPage} />
+      <Route path="/atualizar-planilha" component={isAdmin ? SpreadsheetUploadPage : Forbidden} />
+      <Route path="/admin/usuarios" component={isAdmin ? AdminUsers : Forbidden} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -1,4 +1,4 @@
-import { boolean, decimal, int, longtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, decimal, int, longtext, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -7,11 +7,25 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["admin", "user"]).default("user").notNull(),
-  profileRole: mysqlEnum("profileRole", ["diretoria", "pmo", "gerente", "consultor", "cliente"]).default("gerente").notNull(),
+  profileRole: mysqlEnum("profileRole", ["diretoria", "pmo", "gerente", "consultor", "cliente", "coordenador"]).default("cliente").notNull(),
+  /** Hash scrypt da senha (login próprio). Nunca enviar ao cliente. */
+  passwordHash: varchar("passwordHash", { length: 255 }),
+  /** Novos cadastros entram como "pendente" até um administrador liberar. */
+  status: mysqlEnum("status", ["pendente", "ativo", "bloqueado"]).default("pendente").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
+
+/** Projetos liberados para coordenadores e clientes (administradores veem todos). */
+export const userProjectAccess = mysqlTable("user_project_access", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  projectId: int("projectId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userProjectUnique: uniqueIndex("user_project_unique").on(table.userId, table.projectId),
+}));
 
 export const projects = mysqlTable("projects", {
   id: int("id").autoincrement().primaryKey(),
@@ -262,6 +276,7 @@ export const oracleSyncRuns = mysqlTable("oracle_sync_runs", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+export type UserProjectAccess = typeof userProjectAccess.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
 export type WeeklyUpdate = typeof weeklyUpdates.$inferSelect;

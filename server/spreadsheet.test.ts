@@ -1,4 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// As rotas de upload exigem administrador; o bloqueio real é coberto em httpAuth.test.ts.
+vi.mock("./_core/httpAuth", () => ({
+  requireAdminHttp: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireUserHttp: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import fs from "fs";
@@ -27,6 +33,7 @@ function createMockContext(): TrpcContext {
       loginMethod: "manus",
       role: "admin",
       profileRole: "gerente",
+      status: "ativo",
       createdAt: new Date(),
       updatedAt: new Date(),
       lastSignedIn: new Date(),
