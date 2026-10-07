@@ -1,5 +1,6 @@
-import { and, desc, eq, inArray, like, or } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { drizzle as drizzlePg, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import {
   InsertProject,
   InsertProjectActivity,
@@ -18,21 +19,49 @@ import {
   weeklyUpdateAttachments,
   InsertWeeklyUpdateAttachment,
 } from "../drizzle/schema";
+import * as schema from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { canonicalizePersistedPpsaRows } from "./ppsahours";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+type Db = PostgresJsDatabase<typeof schema>;
+let _db: Db | null = null;
+let _dbPromise: Promise<Db | null> | null = null;
 
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
-  }
+/**
+ * Conexão com o PostgreSQL (Supabase em produção).
+ *
+ *  - postgres://...        Supabase/qualquer Postgres. Use a URL do pooler (porta 6543);
+ *                          `prepare: false` é exigido pelo pooler em modo transação.
+ *  - pglite://memory       Postgres embutido (WASM) em memória, com migrações aplicadas
+ *                          automaticamente. Usado em testes e desenvolvimento sem servidor.
+ *  - pglite://./.data/dev  O mesmo, persistido em disco.
+ */
+export async function getDb(): Promise<Db | null> {
+  const url = process.env.DATABASE_URL;
+  if (_db || !url) return _db;
+  _dbPromise ??= connect(url).catch((error) => {
+    console.warn("[Database] Failed to connect:", error);
+    _dbPromise = null;
+    return null;
+  });
+  _db = await _dbPromise;
   return _db;
+}
+
+async function connect(url: string): Promise<Db> {
+  if (url.startsWith("pglite://")) {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const { drizzle } = await import("drizzle-orm/pglite");
+    const { migrate } = await import("drizzle-orm/pglite/migrator");
+    const location = url.slice("pglite://".length);
+    const client = new PGlite(location === "memory" ? undefined : location);
+    const db = drizzle(client, { schema });
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    return db as unknown as Db;
+  }
+  const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+  const client = postgres(url, { prepare: false, max: 10, ssl: local ? false : "require" });
+  return drizzlePg(client, { schema });
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -68,7 +97,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   values.lastSignedIn = user.lastSignedIn ?? new Date();
   updateSet.lastSignedIn = values.lastSignedIn;
 
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db.insert(users).values(values).onConflictDoUpdate({ target: users.openId, set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
@@ -86,7 +115,7 @@ export async function getProjectsList(search?: string) {
     return db
       .select()
       .from(projects)
-      .where(or(like(projects.code, query), like(projects.name, query), like(projects.client, query)))
+      .where(or(ilike(projects.code, query), ilike(projects.name, query), ilike(projects.client, query)))
       .orderBy(projects.code);
   }
   return db.select().from(projects).orderBy(projects.code);
@@ -178,8 +207,8 @@ export async function createSCurveSnapshot(snapshot: InsertSCurveSnapshot) {
 export async function createWeeklyUpdate(update: InsertWeeklyUpdate, attachments: InsertWeeklyUpdateAttachment[] = []) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados não disponível");
-  const result = await db.insert(weeklyUpdates).values(update);
-  const weeklyUpdateId = Number((result as any)?.[0]?.insertId || 0);
+  const result = await db.insert(weeklyUpdates).values(update).returning({ id: weeklyUpdates.id });
+  const weeklyUpdateId = Number(result[0]?.id || 0);
   if (weeklyUpdateId > 0 && attachments.length > 0) {
     const rows = attachments.map((att) => ({ ...att, weeklyUpdateId }));
     await db.insert(weeklyUpdateAttachments).values(rows);
