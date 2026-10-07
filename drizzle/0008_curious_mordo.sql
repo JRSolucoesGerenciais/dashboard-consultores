@@ -1,0 +1,1 @@
+ALTER TABLE `weekly_updates` MODIFY COLUMN `weekReference` varchar(80) NOT NULL;

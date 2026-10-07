@@ -1,0 +1,1 @@
+ALTER TABLE `project_activities` ADD `moduleActualHours` decimal(10,2);

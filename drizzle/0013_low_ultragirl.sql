@@ -1,0 +1,1 @@
+ALTER TABLE `spreadsheet_import_chunks` MODIFY COLUMN `rowsJson` mediumtext NOT NULL;

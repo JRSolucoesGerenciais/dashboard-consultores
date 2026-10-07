@@ -1,0 +1,671 @@
+ATUALIZAÇÃO DA APLICAÇÃO – NOVA ESTRUTURA DA API DE GESTÃO DE PROJETOS CS ERP
+
+OBJETIVO
+
+Atualizar a aplicação atual de Gestão de Projetos para consumir a nova estrutura da API baseada na SQL consolidada Rev07.
+
+A aplicação já existe e NÃO deve ser refeita do zero.
+
+Preservar:
+
+- identidade visual atual;
+- navegação atual;
+- telas que já funcionam;
+- filtros;
+- cards;
+- cronograma;
+- visão gerencial;
+- experiência do usuário.
+
+A alteração principal será adequar o front-end à nova estrutura de dados da API, eliminando cálculos inconsistentes de horas e criando novos indicadores gerenciais.
+
+=================================================================
+1. REGRA FUNDAMENTAL
+=================================================================
+
+NÃO recalcular horas no front-end quando a API já fornecer o campo consolidado.
+
+A API será a fonte oficial das regras de negócio.
+
+Não somar indiscriminadamente registros de Nível 1, Nível 2 e Nível 3.
+
+Os níveis são hierárquicos e representam as mesmas horas em diferentes níveis de consolidação.
+
+REGRA:
+
+N3 = detalhamento
+N2 = consolidação dos N3 filhos
+N1 = consolidação dos N2 filhos
+
+Nunca:
+
+SUM(N1 + N2 + N3)
+
+=================================================================
+2. NOVOS CAMPOS PRINCIPAIS DA API
+=================================================================
+
+A nova API disponibiliza campos específicos.
+
+IDENTIFICAÇÃO
+
+cod_projeto
+nome_projeto
+
+codgestao
+gestao_descricao
+
+codmodulo
+modulo_descricao
+
+idppsa
+id_pai_ppsa
+nivel
+nivelfilho
+nivelpai
+
+tipo_registro
+possui_cronograma
+tipo_hora_linha
+
+=================================================================
+3. HORAS OFICIAIS DO MÓDULO
+=================================================================
+
+Para cards, dashboards e resumo de módulo utilizar SOMENTE:
+
+horas_modulo_planejadas_decimal
+horas_modulo_planejadas_hhmm
+
+horas_realizadas_modulo_decimal
+horas_realizadas_modulo_hhmm
+
+percentual_horas_modulo_realizado
+
+Esses campos representam o total oficial do módulo.
+
+Exemplo:
+
+Módulo Folha de Pagamento
+
+Planejado:
+320 horas
+
+Realizado:
+227.2 horas
+
+Percentual:
+71%
+
+Não calcular novamente usando as linhas N1/N2/N3.
+
+=================================================================
+4. RESUMO DO MÓDULO
+=================================================================
+
+Também existem os campos:
+
+resumo_modulo_horas_planejadas_decimal
+resumo_modulo_horas_planejadas_hhmm
+
+resumo_modulo_horas_realizadas_decimal
+resumo_modulo_horas_realizadas_hhmm
+
+resumo_modulo_percentual_realizado
+
+Esses campos devem ser usados nas visões gerenciais de módulo.
+
+=================================================================
+5. RESUMO DA GESTÃO
+=================================================================
+
+Para consolidar todos os módulos pertencentes à Gestão utilizar:
+
+resumo_gestao_horas_planejadas_decimal
+resumo_gestao_horas_planejadas_hhmm
+
+resumo_gestao_horas_realizadas_decimal
+resumo_gestao_horas_realizadas_hhmm
+
+resumo_gestao_percentual_realizado
+
+Esses valores já vêm tratados.
+
+Não somar manualmente todas as linhas do cronograma.
+
+=================================================================
+6. HORAS DA ÁRVORE DO CRONOGRAMA
+=================================================================
+
+Para exibir cada linha N1/N2/N3 utilizar:
+
+horas_atividade_planejadas_decimal
+horas_atividade_planejadas_hhmm
+
+horas_realizadas_atomicas_decimal
+horas_realizadas_atomicas_hhmm
+
+horas_realizadas_consolidadas_decimal
+horas_realizadas_consolidadas_hhmm
+
+SIGNIFICADO:
+
+HORAS REALIZADAS ATÔMICAS
+= horas apontadas diretamente naquela PPSA.
+
+HORAS REALIZADAS CONSOLIDADAS
+= horas daquela PPSA considerando seus descendentes.
+
+Exemplo:
+
+N2
+  N3 A = 10h
+  N3 B = 20h
+  N3 C = 30h
+
+horas realizadas consolidadas do N2 = 60h.
+
+Não somar novamente:
+
+60 + 10 + 20 + 30.
+
+=================================================================
+7. CAMPOS ANTIGOS DE COMPATIBILIDADE
+=================================================================
+
+Ainda existem:
+
+total_hora_dias_programados
+horas_total
+
+Esses campos foram mantidos por compatibilidade.
+
+Para novos componentes utilizar preferencialmente os campos explícitos:
+
+*_modulo_*
+*_atividade_*
+*_atomicas_*
+*_consolidadas_*
+
+=================================================================
+8. NÃO EXISTEM MAIS CAMPOS HTML
+=================================================================
+
+Foram removidos da API:
+
+status_atividade_html
+status_estouro_horas_html
+percentual_conclusao_html
+
+A interface deve montar visualmente badges, cores e barras.
+
+Usar os valores puros:
+
+status_atividade
+status_estouro_horas
+percentual_conclusao
+
+=================================================================
+9. CORES SUGERIDAS
+=================================================================
+
+status_atividade:
+
+CONCLUIDA
+→ verde
+
+EM ANDAMENTO
+→ azul
+
+ATRASADA
+→ vermelho
+
+NAO INICIADO
+→ cinza
+
+status_estouro_horas:
+
+ESTOURO DE HORAS
+→ vermelho
+
+REALIZADO CONFERE COM O PLANEJADO
+→ verde
+
+SALDO DE HORAS
+→ amarelo/laranja
+
+SEM PROGRAMACAO
+→ cinza
+
+=================================================================
+10. PROJETO ENCERRADO
+=================================================================
+
+Quando:
+
+projeto_encerrado = 'S'
+
+considerar visualmente:
+
+status = CONCLUIDA
+percentual_conclusao = 100%
+
+e utilizar data_finalizacao_projeto como referência de encerramento.
+
+=================================================================
+11. FORA DO ESCOPO
+=================================================================
+
+tipo_registro pode retornar:
+
+CRONOGRAMA
+FORA_ESCOPO
+
+possui_cronograma:
+
+S
+N
+
+Quando:
+
+tipo_registro = FORA_ESCOPO
+
+o módulo existe no planejamento da PROJETOMODULO, porém não possui estrutura de cronograma correspondente.
+
+Destacar isso na interface.
+
+Sugestão:
+
+badge:
+"Fora do Escopo / Sem Cronograma"
+
+=================================================================
+12. VISÃO EXECUTIVA PRINCIPAL
+=================================================================
+
+Atualizar o dashboard principal com os seguintes indicadores:
+
+CARD 1
+Projetos Ativos
+
+CARD 2
+Projetos Concluídos
+
+CARD 3
+Projetos com Atividades Atrasadas
+
+CARD 4
+% Médio de Evolução dos Projetos
+
+CARD 5
+Horas Planejadas
+
+CARD 6
+Horas Realizadas
+
+CARD 7
+Saldo de Horas
+
+CARD 8
+Horas em Estouro
+
+=================================================================
+13. INDICADORES DE HORAS
+=================================================================
+
+Criar:
+
+Horas Planejadas
+Horas Realizadas
+Saldo de Horas
+% Consumo de Horas
+
+Fórmula:
+
+Saldo =
+Planejado - Realizado
+
+Consumo =
+Realizado / Planejado × 100
+
+Classificação:
+
+< 80%
+normal
+
+80% a 100%
+atenção
+
+> 100%
+estouro
+
+=================================================================
+14. SAÚDE DO PROJETO
+=================================================================
+
+Criar um indicador:
+
+SAÚDE DO PROJETO
+
+VERDE
+
+- sem atraso crítico;
+- consumo de horas até 90%;
+- evolução compatível com planejamento.
+
+AMARELO
+
+- atividades atrasadas;
+- consumo de horas entre 90% e 100%;
+- evolução abaixo do esperado.
+
+VERMELHO
+
+- estouro de horas;
+- atraso relevante;
+- várias atividades críticas;
+- data prevista comprometida.
+
+=================================================================
+15. VISÃO POR GESTÃO
+=================================================================
+
+Criar uma visão:
+
+GESTÕES DO PROJETO
+
+Para cada Gestão apresentar:
+
+- Gestão;
+- quantidade de módulos;
+- horas planejadas;
+- horas realizadas;
+- saldo;
+- % realizado;
+- módulos concluídos;
+- módulos em andamento;
+- módulos atrasados;
+- módulos não iniciados.
+
+Usar obrigatoriamente:
+
+resumo_gestao_*
+
+para horas.
+
+=================================================================
+16. VISÃO POR MÓDULO
+=================================================================
+
+Para cada módulo apresentar:
+
+- módulo;
+- semanas planejadas;
+- início previsto;
+- término previsto;
+- início realizado;
+- término realizado;
+- horas planejadas;
+- horas realizadas;
+- saldo;
+- % consumo;
+- status;
+- quantidade de atividades;
+- atividades concluídas;
+- atividades atrasadas;
+- atividades não iniciadas.
+
+Usar:
+
+resumo_modulo_*
+
+ou
+
+horas_modulo_*
+
+para os totais.
+
+=================================================================
+17. CRONOGRAMA HIERÁRQUICO
+=================================================================
+
+Exibir:
+
+Nível 1
+  ↓
+Nível 2
+  ↓
+Nível 3
+
+Utilizar:
+
+idppsa
+id_pai_ppsa
+nivel
+
+Permitir:
+
+expandir
+recolher
+
+Mostrar por linha:
+
+Descrição
+Nível
+Planejado
+Realizado
+% Conclusão
+Status
+Início Previsto
+Fim Previsto
+Início Realizado
+Fim Realizado
+
+N1 e N2 devem aparecer visualmente como consolidações.
+
+N3 como atividade detalhada.
+
+=================================================================
+18. GANTT
+=================================================================
+
+Criar ou manter visão Gantt utilizando:
+
+inicio_programado
+termino_programado
+
+inicio_realizado
+fim_realizado
+
+percentual_conclusao
+status_atividade
+
+Permitir:
+
+Projeto
+Gestão
+Módulo
+N1
+N2
+N3
+
+=================================================================
+19. ALERTAS EXECUTIVOS
+=================================================================
+
+Criar área:
+
+PONTOS DE ATENÇÃO
+
+Exibir automaticamente:
+
+- módulos acima de 100% das horas;
+- atividades atrasadas;
+- módulos sem início;
+- módulos sem cronograma;
+- projetos próximos da data final;
+- atividades com realizado e sem planejamento;
+- módulos com consumo alto e baixo percentual de conclusão.
+
+=================================================================
+20. RANKINGS
+=================================================================
+
+Criar rankings:
+
+Gestões com maior % de avanço
+
+Gestões com maior estouro de horas
+
+Módulos mais atrasados
+
+Módulos com maior consumo de horas
+
+Projetos com maior quantidade de atividades atrasadas
+
+Projetos com maior diferença planejado x realizado
+
+=================================================================
+21. NOVA VISÃO PMO
+=================================================================
+
+Criar uma tela exclusiva:
+
+PAINEL PMO
+
+Indicadores:
+
+Projetos em andamento
+Projetos concluídos
+Projetos atrasados
+Projetos em risco
+
+Horas planejadas total
+Horas realizadas total
+Saldo total
+Estouro total
+
+% de avanço médio
+% de consumo médio
+
+Principais projetos críticos
+
+Principais módulos críticos
+
+Gestões com maior risco
+
+=================================================================
+22. PERFIS DE VISUALIZAÇÃO
+=================================================================
+
+Criar possibilidade futura de perfis:
+
+PERFIL EXECUTIVO
+
+Foco:
+indicadores
+saúde
+prazo
+horas
+riscos
+
+PERFIL PMO
+
+Foco:
+todos os projetos
+comparação
+ranking
+capacidade
+evolução
+desvios
+
+PERFIL GERENTE DE PROJETO
+
+Foco:
+projeto específico
+gestões
+módulos
+cronograma
+atrasos
+horas
+
+PERFIL CONSULTOR
+
+Foco:
+atividades
+cronograma
+realizado
+pendências
+
+PERFIL CLIENTE
+
+Foco simplificado:
+
+% projeto
+fases
+módulos
+datas
+status
+principais riscos
+
+Não exibir dados internos sensíveis desnecessários.
+
+=================================================================
+23. FILTROS
+=================================================================
+
+Manter/criar filtros por:
+
+Projeto
+Cliente
+Gestor
+Gestão
+Módulo
+Status
+Tipo de Projeto
+Fase
+Período
+
+Quando projeto = 0:
+
+todos os projetos.
+
+=================================================================
+24. REGRA PARA TOTALIZADORES
+=================================================================
+
+Extremamente importante:
+
+NUNCA TOTALIZAR:
+
+SUM(horas de N1 + N2 + N3)
+
+Para total de módulo:
+
+horas_modulo_*
+
+Para total de Gestão:
+
+resumo_gestao_*
+
+Para linha:
+
+horas_atividade_*
+horas_realizadas_consolidadas_*
+
+=================================================================
+25. OBJETIVO FINAL
+=================================================================
+
+A aplicação deverá funcionar como painel gerencial oficial da Gestão de Projetos CS ERP.
+
+A API será a fonte oficial de regras.
+
+O front-end deverá apenas:
+
+consultar
+filtrar
+organizar
+apresentar
+
+e não reconstruir regras complexas de horas.

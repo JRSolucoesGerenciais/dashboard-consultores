@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `projectTypeDescription` varchar(160);

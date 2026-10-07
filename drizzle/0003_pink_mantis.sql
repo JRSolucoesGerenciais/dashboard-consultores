@@ -1,0 +1,3 @@
+ALTER TABLE `projects` MODIFY COLUMN `status` enum('verde','amarelo','vermelho','sem_classificacao') NOT NULL DEFAULT 'sem_classificacao';--> statement-breakpoint
+ALTER TABLE `projects` ADD `ragSource` enum('manual','derivado','nao_disponivel') DEFAULT 'nao_disponivel' NOT NULL;--> statement-breakpoint
+ALTER TABLE `projects` ADD `indicatorQuality` enum('completo','parcial','nao_disponivel') DEFAULT 'nao_disponivel' NOT NULL;
