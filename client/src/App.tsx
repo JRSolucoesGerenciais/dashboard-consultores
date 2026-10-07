@@ -12,6 +12,7 @@ import RisksManagement from "@/pages/RisksManagement";
 import WeeklyCheckin from "@/pages/WeeklyCheckin";
 import VisualControl from "@/pages/VisualControl";
 import SpreadsheetUploadPage from "@/pages/SpreadsheetUploadPage";
+import DailyComparison from "@/pages/DailyComparison";
 import AdminUsers from "@/pages/AdminUsers";
 import Login from "@/pages/Login";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/controle-visual/:id" component={VisualControl} />
       <Route path="/controle-visual" component={VisualControl} />
       <Route path="/apontamento-semanal" component={WeeklyCheckin} />
+      <Route path="/comparativo-diario" component={DailyComparison} />
       <Route path="/riscos-problemas" component={RisksManagement} />
       <Route path="/atualizar-planilha" component={isAdmin ? SpreadsheetUploadPage : Forbidden} />
       <Route path="/admin/usuarios" component={isAdmin ? AdminUsers : Forbidden} />

@@ -23,6 +23,12 @@ Finalizar e evoluir a aplicação web **CS Project Management / Gestão 360°**,
 - Não reintroduza conversão API→XLSX nem processamento HTTP longo. O staging incremental deve permanecer.
 - Campos HTML da API são opcionais/apresentacionais e não devem ser requisito estrutural.
 
+## Acesso e comparação diária
+
+- Login próprio (e-mail/senha). Perfis: administrador (tudo), coordenador (projetos liberados, escrita) e cliente (projetos liberados, leitura). Nunca volte a usar `publicProcedure` em dados de projeto: use `scopedProcedure` (leitura), `writerProcedure` (escrita) ou `adminProcedure` (importação/API/usuários) e filtre por `ctx.scope`.
+- Nunca devolva `passwordHash` ao cliente (`SafeUser`).
+- A foto diária (`server/dailySnapshot.ts`, `shared/dailyDiff.ts`) guarda valores oficiais por projeto e Gestão/Módulo; a comparação subtrai valor a valor e não soma níveis. A rotina das 23h é `pnpm sync:daily` (ver `docs/SETUP_PRODUCAO.md`).
+
 ## Áreas principais
 
 - `client/src/pages/Home.tsx`: Portfólio, KPIs, saúde, projetos críticos, resumo único Gestão/Módulo, tendência histórica e alertas.
@@ -34,6 +40,7 @@ Finalizar e evoluir a aplicação web **CS Project Management / Gestão 360°**,
 - `server/oracleSyncService.ts`: conexão, prévia, staging e publicação da API CSAgenda.
 - `server/spreadsheetService.ts`: detector/parser/importador e aliases oficiais da Rev07.
 - `server/ppsahours.ts` e `shared/hierarchyHours.ts`: consolidação PPSA sem duplicidade hierárquica.
+- `server/_core/access.ts`, `server/adminRouter.ts`, `server/localAuthHttp.ts`: perfis, escopo e login.
 - `server/routers.ts` e `server/db.ts`: contratos tRPC e acesso ao banco.
 - `drizzle/schema.ts` e `drizzle/*.sql`: schema e migrações.
 

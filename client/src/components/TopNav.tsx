@@ -15,6 +15,7 @@ import {
   BarChart3,
   Building2,
   CalendarDays,
+  GitCompareArrows,
   CheckCircle2,
   ChevronDown,
   FileSpreadsheet,
@@ -98,6 +99,10 @@ export function TopNav() {
             <Link href="/apontamento-semanal" className={navClass("/apontamento-semanal", true)}>
               <CalendarDays className="w-4 h-4" />
               Check-in Semanal
+            </Link>
+            <Link href="/comparativo-diario" className={navClass("/comparativo-diario", true)}>
+              <GitCompareArrows className="w-4 h-4" />
+              Comparativo Diário
             </Link>
             <Link href="/riscos-problemas" className={navClass("/riscos-problemas", true)}>
               <AlertTriangle className="w-4 h-4" />

@@ -197,6 +197,13 @@
       "when": 1791400199670,
       "tag": "0027_fine_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "5",
+      "when": 1791400669861,
+      "tag": "0028_curvy_vulture",
+      "breakpoints": true
     }
   ]
 }

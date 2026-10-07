@@ -237,6 +237,41 @@ export const sCurveSnapshots = mysqlTable("s_curve_snapshots", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+/**
+ * Foto diária do portfólio (uma por projeto por dia, fuso America/Sao_Paulo).
+ * O realizado do dia é a diferença entre duas fotos consecutivas.
+ */
+export const dailyProjectSnapshots = mysqlTable("daily_project_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  snapshotDate: varchar("snapshotDate", { length: 10 }).notNull(),
+  projectId: int("projectId").notNull(),
+  projectCode: varchar("projectCode", { length: 64 }).notNull(),
+  projectName: varchar("projectName", { length: 255 }).notNull(),
+  client: varchar("client", { length: 255 }).notNull(),
+  status: varchar("status", { length: 24 }).notNull(),
+  plannedHours: decimal("plannedHours", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  actualHours: decimal("actualHours", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  completionPct: decimal("completionPct", { precision: 7, scale: 2 }).notNull().default("0.00"),
+  totalActivities: int("totalActivities").notNull().default(0),
+  syncRunId: int("syncRunId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  dayProjectUnique: uniqueIndex("daily_project_unique").on(table.snapshotDate, table.projectId),
+}));
+
+export const dailyModuleSnapshots = mysqlTable("daily_module_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  snapshotDate: varchar("snapshotDate", { length: 10 }).notNull(),
+  projectId: int("projectId").notNull(),
+  managementName: varchar("managementName", { length: 120 }).notNull(),
+  moduleName: varchar("moduleName", { length: 120 }).notNull(),
+  plannedHours: decimal("plannedHours", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  actualHours: decimal("actualHours", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  completionPct: decimal("completionPct", { precision: 7, scale: 2 }).notNull().default("0.00"),
+}, (table) => ({
+  dayModuleUnique: uniqueIndex("daily_module_unique").on(table.snapshotDate, table.projectId, table.managementName, table.moduleName),
+}));
+
 export const oracleApiConfigs = mysqlTable("oracle_api_configs", {
   id: int("id").autoincrement().primaryKey(),
   endpointUrl: varchar("endpointUrl", { length: 512 }).notNull(),
@@ -295,6 +330,8 @@ export type SpreadsheetImportChunk = typeof spreadsheetImportChunks.$inferSelect
 export type InsertSpreadsheetImportChunk = typeof spreadsheetImportChunks.$inferInsert;
 export type SCurveSnapshot = typeof sCurveSnapshots.$inferSelect;
 export type InsertSCurveSnapshot = typeof sCurveSnapshots.$inferInsert;
+export type DailyProjectSnapshot = typeof dailyProjectSnapshots.$inferSelect;
+export type DailyModuleSnapshot = typeof dailyModuleSnapshots.$inferSelect;
 export type OracleApiConfig = typeof oracleApiConfigs.$inferSelect;
 export type InsertOracleApiConfig = typeof oracleApiConfigs.$inferInsert;
 export type OracleSyncRun = typeof oracleSyncRuns.$inferSelect;

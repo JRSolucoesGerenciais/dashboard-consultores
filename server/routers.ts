@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { adminRouter, selfServiceRouter } from "./adminRouter";
+import { captureDailySnapshot, getDailyComparison, getProjectDailyTrend, listSnapshotDates } from "./dailySnapshot";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router, scopedProcedure, writerProcedure } from "./_core/trpc";
 import {
@@ -57,6 +58,25 @@ function projectActualHours(project: { actualHours?: unknown; productiveActualHo
 export const appRouter = router({
   system: systemRouter,
   admin: adminRouter,
+  daily: router({
+    dates: scopedProcedure.query(() => listSnapshotDates()),
+    compare: scopedProcedure
+      .input(z.object({
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        const projectIds = ctx.scope.projectIds === null ? null : Array.from(ctx.scope.projectIds);
+        return await getDailyComparison({ toDate: input?.toDate, fromDate: input?.fromDate, projectIds });
+      }),
+    projectTrend: scopedProcedure
+      .input(z.object({ projectId: z.number().int().positive(), days: z.number().int().min(2).max(180).default(30) }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.scope.canAccessProject(input.projectId)) throw forbidProject();
+        return await getProjectDailyTrend(input.projectId, input.days);
+      }),
+    captureNow: adminProcedure.mutation(async () => await captureDailySnapshot()),
+  }),
   auth: router({
     ...selfServiceRouter,
     me: publicProcedure.query(opts => opts.ctx.user),
