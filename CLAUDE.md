@@ -56,14 +56,12 @@ pnpm build
 pnpm dev
 ```
 
-Banco: PostgreSQL (Supabase em produção; `pglite://memory` nos testes e `pglite://./.data/dev` para desenvolver sem servidor). Os testes de `server/projects.test.ts` comparam com dados reais de produção e só passam em um banco já carregado: rode-os com `TEST_DATABASE_URL=<cópia/homologação> pnpm test`, nunca contra produção (alguns testes gravam).
-
 Para mudança de schema:
 
 ```bash
-pnpm db:generate     # gera o SQL em drizzle/
+pnpm drizzle-kit generate
 # revisar o SQL gerado
-pnpm db:migrate      # aplica no banco de DATABASE_URL (ou MIGRATE_DATABASE_URL)
+# aplicar a migração no banco apropriado antes de testar a aplicação
 ```
 
 ## Critérios antes de declarar uma tarefa concluída

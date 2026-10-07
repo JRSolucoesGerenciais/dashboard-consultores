@@ -14,10 +14,6 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    // Postgres embutido (WASM) com as migrações aplicadas na primeira conexão.
-    env: { DATABASE_URL: process.env.TEST_DATABASE_URL ?? "pglite://memory", JWT_SECRET: "teste-teste-teste-teste-teste-teste-123" },
-    testTimeout: 60000,
-    hookTimeout: 60000,
     include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
   },
 });

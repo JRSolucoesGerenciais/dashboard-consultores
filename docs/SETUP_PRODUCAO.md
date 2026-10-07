@@ -1,29 +1,30 @@
 # Colocando o sistema no ar (fora do Manus)
 
-## 1. Banco de dados (Supabase)
+## 1. Banco de dados
 
-O sistema usa **PostgreSQL**; o Supabase serve como banco gerenciado. Usamos só o Postgres dele: o login é o próprio da aplicação (não o Supabase Auth) e a aplicação acessa o banco pelo servidor, nunca pelo navegador.
+O Manus mantinha o banco dentro da plataforma, sem dump exportável neste pacote. O caminho mais simples é **TiDB Cloud Serverless** (MySQL compatível, plano gratuito, o mesmo motor que o Manus usava), sem mudar nada no código.
 
-1. Em supabase.com, crie um projeto (região South America/São Paulo) e guarde a senha do banco.
-2. Em *Connect* (ou *Settings → Database → Connection string*), copie duas URLs:
-   - **Transaction pooler** (porta 6543) → `DATABASE_URL`. É a que a aplicação e a rotina das 23h usam. Funciona em IPv4, necessário para o GitHub Actions.
-   - **Session pooler** (porta 5432 do mesmo host) → `MIGRATE_DATABASE_URL`, só para aplicar migrações.
-3. A conexão direta (`db.PROJETO.supabase.co`) é só IPv6 no plano gratuito; evite.
+1. Crie uma conta em tidbcloud.com e um cluster **Serverless** (região mais próxima, ex.: São Paulo/N. Virginia).
+2. Em *Connect*, gere a senha e copie host, porta (4000), usuário e nome do banco.
+3. Monte a `DATABASE_URL` com SSL (valor com URL-encode do JSON do `ssl`):
 
-**Segurança:** todas as tabelas são criadas com RLS ligado e sem políticas. Assim, a API pública do Supabase (chave `anon`) não lê nada; só o servidor, conectado com a senha do banco, acessa os dados. Nunca coloque a `DATABASE_URL` no navegador nem no Git.
+   ```
+   mysql://USUARIO:SENHA@HOST:4000/BANCO?ssl=%7B%22minVersion%22%3A%22TLSv1.2%22%2C%22rejectUnauthorized%22%3Atrue%7D
+   ```
+4. Alternativas equivalentes: PlanetScale, Railway MySQL, Aiven, Amazon RDS. Qualquer MySQL 8 serve.
 
-Os dados antigos do Manus **não** vêm junto: o banco nasce vazio e se enche na primeira sincronização com a API CSAgenda. Cadastros feitos só no Manus (check-ins semanais, riscos, snapshots de Curva S) precisam ser exportados de lá, se ainda forem necessários.
+Os dados antigos do Manus **não** vêm junto: o banco novo nasce vazio e é preenchido pela primeira sincronização com a API CSAgenda. Cadastros manuais feitos só no Manus (check-ins semanais, riscos, snapshots de Curva S) precisam ser exportados pela tela do Manus, se ainda forem necessários.
 
 ## 2. Preparar o banco e o primeiro administrador
 
 ```bash
-cp .env.example .env        # preencher DATABASE_URL, MIGRATE_DATABASE_URL e JWT_SECRET (openssl rand -hex 32)
+cp .env.example .env        # preencher DATABASE_URL e JWT_SECRET (openssl rand -hex 32)
 pnpm install
-pnpm db:migrate             # cria as tabelas (migração 0000 do Postgres)
+pnpm drizzle-kit migrate    # aplica as migrações 0000..0028 em um banco vazio
 ADMIN_EMAIL=voce@empresa.com ADMIN_NAME="Seu Nome" ADMIN_PASSWORD='senha-longa' pnpm admin:create
 ```
 
-Para desenvolver sem servidor: `DATABASE_URL=pglite://./.data/dev` usa um Postgres embutido, com migrações aplicadas sozinhas. As migrações antigas de MySQL ficam arquivadas em `docs/legacy-mysql/`.
+Revise o SQL das migrações antes de rodar em qualquer banco que já tenha dados.
 
 ## 3. Perfis de acesso
 
@@ -57,7 +58,7 @@ Na tela **Atualizar planilha**, salve o endereço da API CSAgenda e mantenha a s
 
 ## 5. Hospedar a aplicação web
 
-`pnpm build && pnpm start` (porta `PORT`, padrão 3000). Opções: Railway, Render, Fly.io ou uma VPS, sempre atrás de HTTPS (o cookie de sessão é `secure`). Variáveis: `DATABASE_URL` (pooler 6543), `JWT_SECRET`, `ORACLE_API_TOKEN`, `NODE_ENV=production`.
+`pnpm build && pnpm start` (porta `PORT`, padrão 3000). Opções: Railway, Render, Fly.io ou uma VPS, sempre atrás de HTTPS (o cookie de sessão é `secure`). Variáveis: `DATABASE_URL`, `JWT_SECRET`, `ORACLE_API_TOKEN`, `NODE_ENV=production`.
 
 ## 6. Pontos conhecidos
 

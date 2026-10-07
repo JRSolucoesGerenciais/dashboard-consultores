@@ -953,8 +953,8 @@ export async function processAndImportSpreadsheet(
         totalActivities: recs.length + preservedMissingRows.length,
         activeConsultants: consultants.size || 1,
         summary: `Importado diretamente pelo painel web via ${fileName}.`,
-      }).returning({ id: projects.id });
-      projectIdsByCode.set(code, Number(insertedProject.id));
+      });
+      projectIdsByCode.set(code, Number((insertedProject as any).insertId));
       projectsUpdated++;
     }
 
@@ -1140,7 +1140,7 @@ export async function processAndImportSpreadsheet(
 
   // 5. Gravar registro no histórico de auditoria
   const [batchResult] = options?.skipBatchHistory
-    ? [{ id: 0 }]
+    ? [{ insertId: 0 }]
     : await db.insert(projectImportBatches).values({
         fileName,
         storageKey: storageResult?.key || null,
@@ -1155,11 +1155,11 @@ export async function processAndImportSpreadsheet(
           detectedColumns: validation.detectedColumns.length,
           sampleProjects: validation.sampleProjects,
         }),
-      }).returning({ id: projectImportBatches.id });
+      });
 
   return {
     ...validation,
-    batchId: batchResult?.id || 0,
+    batchId: (batchResult as any)?.insertId || 0,
     storageKey: storageResult?.key,
     storageUrl: storageResult?.url,
     projectsUpdated,

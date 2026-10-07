@@ -1,12 +1,208 @@
 {
   "version": "7",
-  "dialect": "postgresql",
+  "dialect": "mysql",
   "entries": [
     {
       "idx": 0,
-      "version": "7",
-      "when": 1791401896830,
-      "tag": "0000_neat_psynapse",
+      "version": "5",
+      "when": 1789473248277,
+      "tag": "0000_silent_redwing",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1789473276086,
+      "tag": "0001_marvelous_maria_hill",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1789474201843,
+      "tag": "0002_wakeful_night_nurse",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1789475897228,
+      "tag": "0003_pink_mantis",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1789479350415,
+      "tag": "0004_round_angel",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1789487680356,
+      "tag": "0005_lyrical_norman_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1789490842554,
+      "tag": "0006_curious_silverclaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1789496362748,
+      "tag": "0007_chilly_preak",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1789522867162,
+      "tag": "0008_curious_mordo",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1789552620230,
+      "tag": "0009_medical_toxin",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1789578533703,
+      "tag": "0010_flat_kabuki",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1789578902088,
+      "tag": "0011_skinny_vindicator",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1789643966414,
+      "tag": "0012_condemned_smasher",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1789644003300,
+      "tag": "0013_low_ultragirl",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1789645886796,
+      "tag": "0014_eminent_lester",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1789652697559,
+      "tag": "0015_heavy_korath",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1789660044721,
+      "tag": "0016_clumsy_sir_ram",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1790599066326,
+      "tag": "0017_young_ultragirl",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1790604861527,
+      "tag": "0018_dazzling_firestar",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1790759920595,
+      "tag": "0019_lying_ultimates",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1790767497469,
+      "tag": "0020_blue_union_jack",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1790855142809,
+      "tag": "0021_furry_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1790899383268,
+      "tag": "0022_premium_lyja",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1790947904062,
+      "tag": "0023_sticky_puma",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1791227577241,
+      "tag": "0024_conscious_jack_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1791228717693,
+      "tag": "0025_dusty_pete_wisdom",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1791231487728,
+      "tag": "0026_bright_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "5",
+      "when": 1791400199670,
+      "tag": "0027_fine_loki",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "5",
+      "when": 1791400669861,
+      "tag": "0028_curvy_vulture",
       "breakpoints": true
     }
   ]
