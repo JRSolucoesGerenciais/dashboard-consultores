@@ -649,8 +649,8 @@ export async function publishAnalyzedPreview(options?: {
     heartbeatAt: null,
     workerToken: null,
     createdAt: new Date(),
-  });
-  const runId = Number((insertResult as any)?.insertId || 0);
+  }).returning({ id: oracleSyncRuns.id });
+  const runId = Number(insertResult?.id || 0);
 
   await db.update(oracleApiConfigs).set({
     lastAttemptAt: new Date(),
@@ -693,8 +693,8 @@ async function processStagedImportSlice(runId: number): Promise<void> {
     eq(oracleSyncRuns.id, runId),
     eq(oracleSyncRuns.status, "processando"),
     or(isNull(oracleSyncRuns.workerToken), lt(oracleSyncRuns.heartbeatAt, staleThreshold)),
-  ));
-  const affectedRows = Number((claimResult as any)?.[0]?.affectedRows ?? (claimResult as any)?.affectedRows ?? 0);
+  )).returning({ id: oracleSyncRuns.id });
+  const affectedRows = claimResult.length;
   if (affectedRows === 0) return;
 
   activeWorkerTokensByRun.set(runId, workerToken);
@@ -876,9 +876,10 @@ async function executeOracleImportAsync(
           lt(oracleSyncRuns.heartbeatAt, staleThreshold)
         )
       )
-    );
+    )
+    .returning({ id: oracleSyncRuns.id });
 
-  const affectedRows = Number((claimResult as any)?.[0]?.affectedRows ?? (claimResult as any)?.affectedRows ?? 0);
+  const affectedRows = claimResult.length;
   if (affectedRows === 0) {
     console.warn(`[OracleSync] Execução runId=${runId} já possui worker ativo; ignorando claim duplicado.`);
     activeWorkerTokensByRun.delete(runId);

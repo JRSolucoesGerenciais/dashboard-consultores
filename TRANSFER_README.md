@@ -8,7 +8,7 @@ Inclui:
 
 - frontend React 19 + Vite + TypeScript + Tailwind/shadcn;
 - backend Express + tRPC 11;
-- Drizzle ORM para MySQL/TiDB;
+- Drizzle ORM (originalmente MySQL/TiDB; agora PostgreSQL/Supabase, ver docs/SETUP_PRODUCAO.md);
 - autenticação Manus OAuth já integrada;
 - filtros globais de portfólio;
 - Portfólio Geral com KPIs, saúde PMBOK, riscos, tendência e resumo Gestão/Módulo;
@@ -34,7 +34,7 @@ Requisitos recomendados:
 
 - Node.js 22+
 - pnpm 10+
-- MySQL/TiDB compatível com Drizzle
+- PostgreSQL (Supabase)
 
 ```bash
 pnpm install
